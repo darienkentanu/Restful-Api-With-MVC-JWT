@@ -46,24 +46,24 @@ func (uc BookController) Login(c echo.Context) error {
 	user, err := uc.model.GetByTitleAndAuthor(loginInfo.Title, loginInfo.Author)
 	if err != nil {
 		fmt.Println(err)
-		return c.String(http.StatusBadRequest, "cannot login1")
+		return c.String(http.StatusBadRequest, err.Error())
 	}
 	token, err := middlewares.CreateToken(int(user.ID), uc.JWT_SECRET)
 	if err != nil {
 		fmt.Println(err)
-		return c.String(http.StatusBadRequest, "cannot login2")
+		return c.String(http.StatusBadRequest, err.Error())
 	}
 	user.Token = token
 	user, err = uc.model.Edit(int(user.ID), user)
 	if err != nil {
 		fmt.Println(err)
-		return c.String(http.StatusInternalServerError, "cannot add token")
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, user)
 }
 
 // get all users
-func (bc *BookController) GetUsersController(c echo.Context) error {
+func (bc *BookController) GetBooksController(c echo.Context) error {
 	books, err := bc.model.GetBooks()
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func (bc *BookController) GetUsersController(c echo.Context) error {
 }
 
 // get user by id
-func (bc *BookController) GetUserController(c echo.Context) error {
+func (bc *BookController) GetBookController(c echo.Context) error {
 	// your solution here
 	bookId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -81,22 +81,22 @@ func (bc *BookController) GetUserController(c echo.Context) error {
 	}
 	book, err := bc.model.GetBook(bookId)
 	if err != nil {
-		return err
+		return fmt.Errorf(err.Error())
 	}
 	return c.JSON(http.StatusOK, book)
 }
 
 // create new user
-func (bc *BookController) CreateUserController(c echo.Context) error {
+func (bc *BookController) CreateBookController(c echo.Context) error {
 	book, err := bc.model.CreateBook(c)
 	if err != nil {
-		return err
+		return fmt.Errorf(err.Error())
 	}
 	return c.JSON(http.StatusOK, book)
 }
 
 // delete user by id
-func (bc *BookController) DeleteUserController(c echo.Context) error {
+func (bc *BookController) DeleteBookController(c echo.Context) error {
 	// your solution here
 	bookId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -109,7 +109,7 @@ func (bc *BookController) DeleteUserController(c echo.Context) error {
 	return c.JSON(http.StatusOK, M{"message": "deleted"})
 }
 
-func (bc *BookController) UpdateUserController(c echo.Context) error {
+func (bc *BookController) UpdateBookController(c echo.Context) error {
 	// your solution here
 	bookId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

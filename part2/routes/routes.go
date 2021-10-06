@@ -18,14 +18,14 @@ func New() *echo.Echo {
 	bc := c.NewController(consts.JWT_SECRET, mdl)
 
 	e.POST("/login", bc.Login)
-	e.GET("/books", bc.GetUsersController)
-	e.GET("/books/:id", bc.GetUserController)
+	e.GET("/books", bc.GetBooksController)
+	e.GET("/books/:id", bc.GetBookController)
 
 	eAuth := e.Group("")
 	eAuth.Use(middleware.JWT([]byte(consts.JWT_SECRET)))
-	eAuth.POST("/books", bc.CreateUserController)
-	eAuth.DELETE("/books/:id", bc.DeleteUserController)
-	eAuth.PUT("/books/:id", bc.UpdateUserController)
+	eAuth.POST("/books", bc.CreateBookController)
+	eAuth.DELETE("/books/:id", bc.DeleteBookController)
+	eAuth.PUT("/books/:id", bc.UpdateBookController)
 
 	return e
 }

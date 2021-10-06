@@ -59,7 +59,7 @@ func (bm *BooksModel) GetBook(bookId int) (Book, error) {
 }
 
 func (bm *BooksModel) CreateBook(c echo.Context) (Book, error) {
-	book := Book{}
+	var book = Book{}
 	if err := c.Bind(&book); err != nil {
 		return Book{}, err
 	}
