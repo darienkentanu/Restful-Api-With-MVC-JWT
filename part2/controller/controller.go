@@ -5,35 +5,68 @@ import (
 	"net/http"
 	"strconv"
 
+	"part2/middlewares"
 	"part2/model"
 
 	"github.com/labstack/echo"
 )
 
-var db = model.DB
+type M map[string]interface{}
+
+type LoginInfo struct {
+	Title  string `json:"title" form:"title"`
+	Author string `json:"author" form:"author"`
+}
+
+// var db = model.DB
 
 type BooksModel interface {
-	GetUsersController() error
-	GetUserController() error
-	CreateUserController() error
-	DeleteUserController() error
-	UpdateUserController() error
+	GetBooks() ([]model.Book, error)
+	GetBook(bookId int) (model.Book, error)
+	CreateBook(c echo.Context) (model.Book, error)
+	DeleteBook(bookId int) error
+	UpdateBook(bookId int, c echo.Context) (model.Book, error)
+	Edit(id int, newB model.Book) (model.Book, error)
+	GetByTitleAndAuthor(title string, author string) (model.Book, error)
 }
 
 type BookController struct {
-	model BooksModel
+	model      BooksModel
+	JWT_SECRET string
 }
 
-func NewController(m BooksModel) BookController {
-	return BookController{model: m}
+func NewController(JWT_SECRET string, m BooksModel) BookController {
+	return BookController{model: m, JWT_SECRET: JWT_SECRET}
+}
+
+// login
+func (uc BookController) Login(c echo.Context) error {
+	loginInfo := LoginInfo{}
+	c.Bind(&loginInfo)
+	user, err := uc.model.GetByTitleAndAuthor(loginInfo.Title, loginInfo.Author)
+	if err != nil {
+		fmt.Println(err)
+		return c.String(http.StatusBadRequest, "cannot login1")
+	}
+	token, err := middlewares.CreateToken(int(user.ID), uc.JWT_SECRET)
+	if err != nil {
+		fmt.Println(err)
+		return c.String(http.StatusBadRequest, "cannot login2")
+	}
+	user.Token = token
+	user, err = uc.model.Edit(int(user.ID), user)
+	if err != nil {
+		fmt.Println(err)
+		return c.String(http.StatusInternalServerError, "cannot add token")
+	}
+	return c.JSON(http.StatusOK, user)
 }
 
 // get all users
 func (bc *BookController) GetUsersController(c echo.Context) error {
-	var books []model.Book
-	if err := db.Find(&books).Error; err != nil {
-		fmt.Println(err)
-		return c.String(http.StatusInternalServerError, "internal server error")
+	books, err := bc.model.GetBooks()
+	if err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, books)
 }
@@ -46,25 +79,18 @@ func (bc *BookController) GetUserController(c echo.Context) error {
 		fmt.Println(err)
 		return c.String(http.StatusBadRequest, "invalid id")
 	}
-	var book model.Book
-	if err := db.First(&book, bookId).Error; err != nil {
-		fmt.Println(err)
-		return c.String(http.StatusInternalServerError, "internal server error")
-	}
-	if book.ID == 0 {
-		return c.String(http.StatusNotFound, "book not found")
+	book, err := bc.model.GetBook(bookId)
+	if err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, book)
 }
 
 // create new user
 func (bc *BookController) CreateUserController(c echo.Context) error {
-	book := model.Book{}
-	if err := c.Bind(&book); err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
-	}
-	if err := db.Save(&book).Error; err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
+	book, err := bc.model.CreateBook(c)
+	if err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, book)
 }
@@ -74,19 +100,13 @@ func (bc *BookController) DeleteUserController(c echo.Context) error {
 	// your solution here
 	bookId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid id")
+		return err
 	}
-	var book model.Book
-	if err := db.First(&book, bookId).Error; err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
+	err = bc.model.DeleteBook(bookId)
+	if err != nil {
+		return err
 	}
-	if book.ID == 0 {
-		return c.String(http.StatusNotFound, "book not found")
-	}
-	if err := db.Delete(&book).Error; err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
-	}
-	return c.JSON(http.StatusOK, book)
+	return c.JSON(http.StatusOK, M{"message": "deleted"})
 }
 
 func (bc *BookController) UpdateUserController(c echo.Context) error {
@@ -95,18 +115,9 @@ func (bc *BookController) UpdateUserController(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusBadRequest, "invalid id")
 	}
-	var book model.Book
-	if err := db.First(&book, bookId).Error; err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
-	}
-	if book.ID == 0 {
-		return c.String(http.StatusNotFound, "book not found")
-	}
-	if err := c.Bind(&book); err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
-	}
-	if err := db.Save(&book).Error; err != nil {
-		return c.String(http.StatusInternalServerError, "internal server error")
+	book, err := bc.model.UpdateBook(bookId, c)
+	if err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, book)
 }
